@@ -3,7 +3,7 @@
 /* global traceur */
 /* global process */
 
-import { Path, FS, exitWith, fuzzyMatch, promisify } from './util.js';
+import { Execute, Path, FS, exitWith, fuzzyMatch, promisify, spawn } from './util.js';
 
 Promise.prototype.end = function(...args) {
 	this.catch(console.error.bind(console, 'Promise chain failed with:', ...args));
@@ -23,7 +23,7 @@ function compile(object, { autoAlias, autoType, }) {
 	const objects = new Map();
 	objects.set(null, 0);
 
-	const newId = ((c = 0) => () => ++c)();
+	const newId = ((c = 100) => () => ++c)();
 
 	const giveIds = object => {
 		Object.keys(object).forEach(key => {
@@ -105,11 +105,11 @@ function compile(object, { autoAlias, autoType, }) {
 			} break;
 			case 'event': {
 				out += 'Event { '+ [
-					'"'+ object.name +'"',
+					object.name,
 					object.time,
 					objects.get(object.sender),
 					objects.get(object.object),
-					'"'+ object.data +'"',
+					(object.data +'').replace(/ /g, '_'),
 				].map(s => s +'').join(' ') +' }\n';
 			} break;
 			case null: {
@@ -123,51 +123,60 @@ function compile(object, { autoAlias, autoType, }) {
 	return out;
 }
 
-export const main = (dir, { files: { 0: src, 1: dest, }, autoAlias, autoType }) => {
-
-	console.log(autoAlias, autoType);
+export const main = (dir, { files: { 0: src, 1: dest, }, autoAlias, autoType, cat: catExec }) => spawn(function*() {
 
 	let mode = Path.basename(dir, '.js');
 	dir = Path.dirname(dir);
 	src = Path.resolve(dir, src);
 	dest = Path.resolve(dir, dest);
+	catExec = catExec && Path.resolve(dir, catExec);
 
 	console.log(mode, src, 'to', dest);
 
-	!FS.existsSync(src) && exitWith('source '+ src +' doesn\'t exist');
-	!FS.existsSync(dest) && exitWith('destioation '+ dest +' doesn\'t exist');
+	!(yield FS.exists(src)) && exitWith('source '+ src +' doesn\'t exist');
+	!(yield FS.exists(dest)) && exitWith('destioation '+ dest +' doesn\'t exist');
 
+	let files = [ src ];
+	try {
+		files = yield FS.listDir(src);
+	} catch (error) {
+		if (error.code !== 'ENOTDIR') { throw error; }
+	}
 
-	FS.listDir(src)
-	.catch(error => error.code == 'ENOTDIR' ? [ src ] : Promise.reject(error))
-	.then(files => {
-		files.filter(path => (/\.js$/.test(path)));
-		console.log('found '+ files.length +' file(s)');
+	files = files.filter(path => (/\.js$/).test(path)).sort();
+	console.log('found '+ files.length +' file(s)');
 
-		files.forEach(file =>
-			FS.stat(file)
-			.then(stat =>
-				traceur.import(file, { })
-				.then(test => {
-					test = Object.keys(test).reduce((object, key) => ((object[key] = test[key]), object), { });
+	let errors = yield Promise.all(files.map(file => spawn(function*() {
+		if (!(yield FS.stat(file)).isFile()) { return; }
 
-					const out = compile(test, { autoAlias, autoType, });
+		const test = Object.assign({ }, (yield traceur.import(file, { })));
 
-					const target = Path.resolve(dest, Path.relative(src, file) || Path.basename(file)).replace(/.\w+$/, '.txt');
+		const out = compile(test, { autoAlias, autoType, });
 
-					console.log(out ,'=> ', target);
+		const target = Path.resolve(dest, Path.relative(src, file) || Path.basename(file)).replace(/.\w+$/, '.txt');
 
-					FS.makeDir(Path.dirname(target))
-					.then(() => FS.writeFile(target, out))
-					.then(() => console.log('wrote to file', target))
-					.catch(error => console.error(error));
+		// console.log(out ,'=> ', target);
 
-				})
-			)
-			.end()
-		);
+		try {
+			yield FS.makeDir(Path.dirname(target));
+			yield FS.writeFile(target, out);
+			console.log('wrote to file', target);
+		} catch (error) {
+			console.error(error);
+			return error;
+		}
 
-		//exitWith('source '+ src +'is neither file nor directory');
-	})
-	.end();
-};
+		if (catExec) {
+			try {
+				let result = (yield Execute(catExec, [ target ], { env: process.env, })).split('\n');
+				console.log(result[result.length - 2]);
+			} catch (error) {
+				console.error('Execution of:\n\t'+ catExec +' '+ target +'\nterminated abnormally:\n', error);
+			}
+		}
+
+	})));
+
+}).catch(error => {
+	exitWith('uncought exception\n', error, '\n terminating');
+});

@@ -50,7 +50,7 @@ export const person1 = {
 
 export const event1 = {
 	/*type: 'event',*/
-	name: 'unexpected',
+	name: 'Elevator::Malfunction',
 	time: 10,
 	sender: interface1,
 	object: person1,
