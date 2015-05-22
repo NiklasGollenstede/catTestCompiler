@@ -23,18 +23,35 @@ function compile(object, { autoAlias, autoType, }) {
 	const objects = new Map();
 	objects.set(null, 0);
 
-	const newId = ((c = 100) => () => ++c)();
+	const newId = ((c = 100000000, used = { 'NaN': true, }) => ({ alias }) => {
+		if (alias) {
+			let { 1: type, 2: id, } = (alias.match(/([A-z]+)(\d+)/) || [ ]);
+			id = id- -({
+				button: 10000000,
+				interface: 20000000,
+				floor: 30000000,
+				elevator: 40000000,
+				person: 50000000,
+				event: 60000000,
+			})[type];
+			if (!used[id]) {
+				used[id] = true;
+				return id;
+			}
+		}
+		return ++c;
+	})();
 
 	const giveIds = object => {
 		Object.keys(object).forEach(key => {
 			if (object[key] instanceof Object) {
 				if (!objects.has(object[key])) {
 					if (!(object[key] instanceof Array)) {
-						let id = newId();
-						objects.set(object[key], id);
 						if (autoAlias && !object[key].alias) {
 							object[key].alias = key;
 						}
+						let id = newId(object[key]);
+						objects.set(object[key], id);
 						if (object[key].alias) {
 							objects.set(object[key].alias, id);
 						}
@@ -57,6 +74,9 @@ function compile(object, { autoAlias, autoType, }) {
 		if (autoType && !object.type && typeof object.alias === 'string') {
 			object.type = expectedTypes[expectedTypes.map(type => fuzzyMatch(type, object.alias)).reduce((o, v, i) => v > o.v ? { v, i, } : o, { v: 0, i: -1}).i];
 		}
+
+		!object.entities && (object.entities = [ ]);
+		!object.interfaces && (object.interfaces = [ ]);
 
 		switch (object.type) {
 			case 'button': {
@@ -168,10 +188,10 @@ export const main = (dir, { files: { 0: src, 1: dest, }, autoAlias, autoType, ca
 
 		if (catExec) {
 			try {
-				let result = (yield Execute(catExec, [ target ], { env: process.env, })).split('\n');
+				let result = (yield Execute(catExec, [ target ], { timeout: 50000, })).split('\n');
 				console.log(result[result.length - 2]);
 			} catch (error) {
-				console.error('Execution of:\n\t'+ catExec +' '+ target +'\nterminated abnormally:\n', error);
+				console.error('Execution of:\n\t'+ catExec +' '+ target +'\nterminated abnormally:\n\t', error.killed ? 'killed due to timeout' : error.stderr);
 			}
 		}
 

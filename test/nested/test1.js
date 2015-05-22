@@ -1,58 +1,30 @@
 'use strict';
 
-export const interface1 = {
-	/*type: 'interface',*/
-	entities: [ 'elevator1' ],
-};
+import { Building, Elevator, Croud, } from 'testhelper.js';
 
-export const floor10 = {
-	/*type: 'floor',*/
-	below: 'floor11',
-	above: null,
-	height: 4,
-	interfaces: [ interface1, ],
-};
+export const floors = new Building(20/*, () => 3- -Math.floor(Math.random() * 4)*/);
 
-export const floor11 = {
-	/*type: 'floor',*/
-	/*alias: 'floor11',*/
-	below: null,
-	above: floor10,
-	height: 4,
-	interfaces: [ interface1, ],
-};
+export const elevators = (() => {
+	let elevators = [ ];
 
-export const elevator1 = {
-	/*type: 'elevator',*/
-	speed: 1,
-	load: 10,
-	start: floor11,
-	interfaces: [
-		{
-			type: 'interface',
-			entities: [ floor11, ],
-		},
-		{
-			type: 'interface',
-			entities: [ floor10, ],
-		},
-	],
-};
+	elevators.push(new Elevator(floors));
+	elevators.push(new Elevator(floors));
+	elevators.push(new Elevator(floors));
+	elevators.push(new Elevator(floors));
+	elevators.push(new Elevator(floors));
+	elevators.push(new Elevator(floors));
 
-export const person1 = {
-	/*type: 'person',*/
-	from: floor11,
-	to: floor10,
-	time: 10,
-	wight: 5,
-	start: 0,
-};
+	return elevators;
+})();
 
-export const event1 = {
-	/*type: 'event',*/
-	name: 'Elevator::Malfunction',
-	time: 10,
-	sender: interface1,
-	object: person1,
-	data: 'strange stuff',
-};
+export const people = (() => {
+	let people = [ ];
+
+	people.push(...new Croud(10, {
+		from: () => floors[0],
+		to: () => floors[floors.length - 1],
+		time: () => 10000,
+	}, 0));
+
+	return people;
+})();
