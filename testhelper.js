@@ -20,7 +20,7 @@ export const Building = function(heigth, floorHeight = () => 4) {
 };
 
 export const Elevator = (() => {
-	let count = 500; // TODO test ++count as default
+	let count = 50000;
 	return function(floors, { speed = 1, load = 10, start = 0, } = { }, index = ++count) {
 		let elevator = {
 			alias: 'elevator'+ index,
@@ -55,7 +55,7 @@ export const Elevator = (() => {
 })();
 
 export const Croud = (() => {
-	let count = 500; // TODO test ++count as default
+	let count = 50000;
 	return function(size, { from, to, time, start = () => 0, weight = () => 5, }, index = ++count) {
 		let people = Array(size);
 
