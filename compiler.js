@@ -23,18 +23,18 @@ function compile(object, { autoAlias, autoType, }) {
 	const objects = new Map();
 	objects.set(null, 0);
 
-	const newId = ((c = 100000000, used = { 'NaN': true, }) => ({ alias }) => {
+	const newId = ((c = 0, used = { 'NaN': true, }) => ({ alias }) => {
 		if (alias) {
 			let { 1: type, 2: id, } = (alias.match(/([A-z]+)(\d+)/) || [ ]);
 			id = id- -({
-				button: 10000000,
-				interface: 20000000,
-				floor: 30000000,
-				elevator: 40000000,
-				person: 50000000,
-				event: 60000000,
+				button: 100000000,
+				interface: 200000000,
+				floor: 300000000,
+				elevator: 400000000,
+				person: 500000000,
+				event: 600000000,
 			})[type];
-			if (!used[id]) {
+			if (!used[id] && id <= 2197483647) { // = 2^31 - 1
 				used[id] = true;
 				return id;
 			}
